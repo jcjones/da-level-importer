@@ -17,7 +17,10 @@
 
 import { FLOOR_HEIGHT } from "./constants.js";
 
-const FLOOR_RE = /-_(\d+)$/;
+// DA's own exports suffix each floor `-_NN`, but hand-renamed folders commonly
+// use a plain `_NN`. Accept either, or the suffix survives into the scene name
+// and every floor reads as a separate map.
+const FLOOR_RE = /[-_]_?(\d+)$/;
 
 /**
  * Background media accepted alongside each floor's `.json`. Foundry can use any
