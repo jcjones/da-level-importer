@@ -217,15 +217,22 @@ export class DAImporterDialog extends HandlebarsApplicationMixin(ApplicationV2) 
       callback: async (path) => {
         const folderInput = this.element.querySelector("input[name='folder']");
         const sourceInput = this.element.querySelector("input[name='source']");
+        const bucketInput = this.element.querySelector("input[name='bucket']");
         if (folderInput) folderInput.value = path;
         const source = picker.activeSource ?? "data";
         if (sourceInput) sourceInput.value = source;
+        // The folder callback hands back a path relative to the source, so for S3
+        // the bucket lives only on the picker — carry it along or every later
+        // browse/import resolves against no bucket at all.
+        const bucket = picker.source?.bucket || picker.result?.bucket || "";
+        if (bucketInput) bucketInput.value = bucket;
 
         // Browse the folder so the Levels tab can show per-level rows.
         try {
-          const listing = await FilePicker.browse(source, path);
+          const listing = await FilePicker.browse(source, path, { bucket });
           this._floorPairs = collectFloorPairs(listing.files);
-        } catch (_err) {
+        } catch (err) {
+          console.warn(`[DA Importer] cannot browse "${path}" on source "${source}":`, err);
           this._floorPairs = [];
         }
         // Fresh folder: give each floor a stable uid (so its edits and order can
@@ -946,6 +953,7 @@ export class DAImporterDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     if (this._mode === "edit") { await this._applyLevelEdits(); return; }
     const folder = this.element.querySelector("input[name='folder']")?.value?.trim();
     const source = this.element.querySelector("input[name='source']")?.value?.trim() || "data";
+    const bucket = this.element.querySelector("input[name='bucket']")?.value?.trim() || "";
     if (!folder) {
       ui.notifications.warn("Please select a folder first.");
       return;
@@ -992,7 +1000,7 @@ export class DAImporterDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     }));
 
     const initialLevelIndex = Math.max(0, this._floorPairs.findIndex(p => p.uid === this._initialLevelUid));
-    const scene = await importFolder({ source, path: folder, backgroundColor, gridAlpha, copyImages, doorTexture, doorSound, levelOverrides, initialLevelIndex });
+    const scene = await importFolder({ source, bucket, path: folder, backgroundColor, gridAlpha, copyImages, doorTexture, doorSound, levelOverrides, initialLevelIndex });
     if (scene) this.close();
   }
 }
